@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<title>АвтоСервис — управление</title>
+<link rel="manifest" href="manifest.webmanifest">
+<style>
+:root{--bg:#0b1220;--panel:#121c2d;--panel2:#19263a;--line:#26364d;--txt:#edf3fb;--muted:#9fb0c5;--accent:#53c6a5;--warn:#f5bd58;--red:#ef7777}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font:15px system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+header{position:sticky;top:0;background:#101a2aee;backdrop-filter:blur(12px);padding:15px 16px;border-bottom:1px solid var(--line);z-index:5}
+.head{display:flex;align-items:center;justify-content:space-between;gap:10px}.brand{font-size:18px;font-weight:800}.sub{font-size:12px;color:var(--muted);margin-top:2px}
+main{max-width:980px;margin:auto;padding:16px 14px 90px}.page-title{font-size:22px;font-weight:800;margin:8px 0 14px}
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.stat,.panel,.item{background:var(--panel);border:1px solid var(--line);border-radius:15px;padding:14px}
+.stat small{color:var(--muted)}.stat strong{display:block;font-size:23px;margin-top:5px}.green{color:var(--accent)}.yellow{color:var(--warn)}
+.nav{position:fixed;bottom:0;left:0;right:0;background:#101a2af2;border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:8px 4px calc(8px + env(safe-area-inset-bottom));z-index:6}
+.nav button{background:none;border:0;color:var(--muted);font-size:11px;padding:5px 3px;min-width:55px}.nav button.active{color:var(--accent)}.nav span{display:block;font-size:19px;margin-bottom:2px}
+button,.btn{border:0;border-radius:11px;padding:11px 14px;background:var(--accent);color:#06251e;font-weight:750;font-size:14px;cursor:pointer}
+button.secondary{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}button.danger{background:#512b35;color:#ffdce0}
+.toolbar{display:flex;gap:8px;align-items:center;justify-content:space-between;margin:12px 0;flex-wrap:wrap}
+input,select,textarea{width:100%;background:#0d1726;color:var(--txt);border:1px solid var(--line);border-radius:10px;padding:12px;font:inherit;margin:5px 0 10px}
+label{font-size:12px;color:var(--muted)}.list{display:grid;gap:9px}.item{display:flex;justify-content:space-between;gap:10px;align-items:center}.item b{display:block}.item small{color:var(--muted)}.pill{font-size:11px;padding:5px 8px;border-radius:20px;background:#20394a;color:#8fe0c6;white-space:nowrap}
+.empty{color:var(--muted);padding:22px;text-align:center;border:1px dashed var(--line);border-radius:14px}
+.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}.formgrid .full{grid-column:1/-1}
+.modal{position:fixed;inset:0;background:#0009;display:none;align-items:flex-end;z-index:10}.modal.show{display:flex}.sheet{background:var(--panel);border-radius:20px 20px 0 0;padding:20px;width:100%;max-height:90vh;overflow:auto;border:1px solid var(--line)}
+.sheet h2{margin:0 0 14px}.actions{display:flex;gap:8px}.actions>*{flex:1}
+.muted{color:var(--muted)}.section{margin:18px 0}.section h3{font-size:15px;margin:0 0 10px}
+@media(min-width:700px){.stats{grid-template-columns:repeat(4,1fr)}.modal{align-items:center;justify-content:center}.sheet{max-width:560px;border-radius:20px}.nav{position:sticky;top:65px;bottom:auto;justify-content:flex-start;gap:12px;padding:8px 14px;border-bottom:1px solid var(--line);border-top:0}.nav button{min-width:72px}main{padding-top:20px}}
+</style>
+</head>
+<body>
+<header><div class="head"><div><div class="brand">🔧 АвтоСервис</div><div class="sub">Управление мастерской · ₽</div></div><div class="pill" id="roleBadge">Демо · Директор</div></div></header>
+<nav class="nav" id="nav">
+<button class="active" data-page="home"><span>⌂</span>Главная</button>
+<button data-page="orders"><span>▤</span>Заказы</button>
+<button data-page="clients"><span>♙</span>Клиенты</button>
+<button data-page="stock"><span>▦</span>Склад</button>
+<button data-page="finance"><span>₽</span>Финансы</button>
+<button data-page="staff"><span>♧</span>Персонал</button>
+</nav>
+<main id="app"></main>
+<div class="modal" id="modal"><div class="sheet"><div id="modalContent"></div></div></div>
+<script>
+const $=s=>document.querySelector(s);
+const load=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch{return d}};
+const save=()=>{localStorage.setItem('as_data',JSON.stringify(db))};
+let db=load('as_data',{clients:[],cars:[],orders:[],stock:[],staff:[{name:'Директор',role:'Директор'}],expenses:[]});
+let page='home', role='Директор';
+const money=n=>(Number(n)||0).toLocaleString('ru-RU')+' ₽';
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function modal(html){$('#modalContent').innerHTML=html;$('#modal').classList.add('show')}
+function closeModal(){$('#modal').classList.remove('show')}
+$('#modal').addEventListener('click',e=>{if(e.target.id==='modal')closeModal()});
+function setPage(p){page=p;document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.page===p));render()}
+$('#nav').addEventListener('click',e=>{let b=e.target.closest('button[data-page]');if(b)setPage(b.dataset.page)});
+function addClient(){modal(`<h2>Новый клиент</h2><form id="clientForm"><label>ФИО / название</label><input name="name" required><label>Телефон</label><input name="phone" type="tel"><label>Комментарий</label><textarea name="note"></textarea><div class="actions"><button type="button" class="secondary" onclick="closeModal()">Отмена</button><button>Сохранить</button></div></form>`);$('#clientForm').onsubmit=e=>{e.preventDefault();let f=new FormData(e.target);db.clients.push({id:Date.now(),name:f.get('name'),phone:f.get('phone'),note:f.get('note')});save();closeModal();render()}}
+function addOrder(){let opts=db.clients.map(c=>`<option value="${c.id}">${esc(c.name)}</option>`).join('');modal(`<h2>Новый заказ</h2><form id="orderForm"><label>Клиент</label><select name="client" required>${opts||'<option value="">Сначала добавьте клиента</option>'}</select><label>Автомобиль</label><input name="car" placeholder="Toyota Camry, 2008, госномер"><label>Работы</label><textarea name="work" required placeholder="Диагностика, замена ГРМ..."></textarea><div class="formgrid"><div><label>Стоимость, ₽</label><input name="price" type="number" min="0" required></div><div><label>Статус</label><select name="status"><option>Новый</option><option>В работе</option><option>Ожидает запчасти</option><option>Готов</option><option>Выдан</option></select></div></div><div class="actions"><button type="button" class="secondary" onclick="closeModal()">Отмена</button><button ${opts?'':'disabled'}>Создать заказ</button></div></form>`);$('#orderForm').onsubmit=e=>{e.preventDefault();let f=new FormData(e.target);db.orders.push({id:Date.now(),client:Number(f.get('client')),car:f.get('car'),work:f.get('work'),price:Number(f.get('price')),status:f.get('status'),date:new Date().toISOString()});save();closeModal();render()}}
+function addStock(){modal(`<h2>Новая позиция</h2><form id="stockForm"><label>Наименование</label><input name="name" required><div class="formgrid"><div><label>Количество</label><input name="qty" type="number" min="0" required></div><div><label>Цена за единицу, ₽</label><input name="price" type="number" min="0" required></div></div><div class="actions"><button type="button" class="secondary" onclick="closeModal()">Отмена</button><button>Сохранить</button></div></form>`);$('#stockForm').onsubmit=e=>{e.preventDefault();let f=new FormData(e.target);db.stock.push({id:Date.now(),name:f.get('name'),qty:+f.get('qty'),price:+f.get('price')});save();closeModal();render()}}
+function addExpense(){modal(`<h2>Новый расход</h2><form id="expForm"><label>Статья расхода</label><input name="name" required placeholder="Аренда, инструмент, закупка..."><label>Сумма, ₽</label><input name="amount" type="number" min="0" required><div class="actions"><button type="button" class="secondary" onclick="closeModal()">Отмена</button><button>Добавить</button></div></form>`);$('#expForm').onsubmit=e=>{e.preventDefault();let f=new FormData(e.target);db.expenses.push({id:Date.now(),name:f.get('name'),amount:+f.get('amount'),date:new Date().toISOString()});save();closeModal();render()}}
+function addStaff(){modal(`<h2>Добавить сотрудника</h2><form id="staffForm"><label>Имя</label><input name="name" required><label>Роль</label><select name="role"><option>Приёмщик</option><option>Механик</option><option>Бухгалтер</option><option>Кладовщик</option><option>Директор</option></select><div class="actions"><button type="button" class="secondary" onclick="closeModal()">Отмена</button><button>Добавить</button></div></form>`);$('#staffForm').onsubmit=e=>{e.preventDefault();let f=new FormData(e.target);db.staff.push({name:f.get('name'),role:f.get('role')});save();closeModal();render()}}
+function clientName(id){return db.clients.find(c=>c.id===id)?.name||'Клиент удалён'}
+function orderList(){return db.orders.slice().reverse().map(o=>`<div class="item"><div><b>Заказ №${o.id.toString().slice(-5)} · ${esc(clientName(o.client))}</b><small>${esc(o.car||'Автомобиль не указан')} · ${esc(o.work)}</small><small>${money(o.price)}</small></div><select aria-label="Статус заказа" onchange="changeStatus(${o.id},this.value)">${['Новый','В работе','Ожидает запчасти','Готов','Выдан'].map(s=>`<option ${s===o.status?'selected':''}>${s}</option>`).join('')}</select></div>`).join('')||'<div class="empty">Заказов пока нет</div>'}
+function changeStatus(id,s){let o=db.orders.find(x=>x.id===id);if(o){o.status=s;save();render()}}
+function render(){
+let revenue=db.orders.filter(o=>o.status==='Выдан').reduce((a,o)=>a+o.price,0), active=db.orders.filter(o=>!['Выдан','Готов'].includes(o.status)).length, expenses=db.expenses.reduce((a,e)=>a+e.amount,0);
+let html='';
+if(page==='home')html=`<div class="page-title">Обзор сервиса</div><div class="stats"><div class="stat"><small>Выручка по выданным заказам</small><strong class="green">${money(revenue)}</strong></div><div class="stat"><small>Заказы в работе</small><strong>${active}</strong></div><div class="stat"><small>Клиенты</small><strong>${db.clients.length}</strong></div><div class="stat"><small>Сотрудники</small><strong>${db.staff.length}</strong></div></div><div class="section"><div class="toolbar"><h3>Последние заказы</h3><button onclick="addOrder()">＋ Заказ</button></div><div class="list">${orderList()}</div></div><div class="panel"><b>Первая версия</b><p class="muted">Это демонстрационный прототип. Данные сохраняются в этом браузере на этом устройстве. Для совместной работы сотрудников потребуется подключить серверную базу и авторизацию.</p></div>`;
+if(page==='orders')html=`<div class="page-title">Заказы-наряды</div><div class="toolbar"><span class="muted">${db.orders.length} всего</span><button onclick="addOrder()">＋ Новый заказ</button></div><div class="list">${orderList()}</div>`;
+if(page==='clients')html=`<div class="page-title">Клиенты</div><div class="toolbar"><span class="muted">${db.clients.length} записей</span><button onclick="addClient()">＋ Клиент</button></div><div class="list">${db.clients.map(c=>`<div class="item"><div><b>${esc(c.name)}</b><small>${esc(c.phone||'Телефон не указан')}</small>${c.note?`<small>${esc(c.note)}</small>`:''}</div><span class="pill">${db.orders.filter(o=>o.client===c.id).length} заказов</span></div>`).join('')||'<div class="empty">Добавьте первого клиента</div>'}</div>`;
+if(page==='stock')html=`<div class="page-title">Склад запчастей</div><div class="toolbar"><span class="muted">${db.stock.length} позиций</span><button onclick="addStock()">＋ Позиция</button></div><div class="list">${db.stock.map(s=>`<div class="item"><div><b>${esc(s.name)}</b><small>${money(s.price)} за единицу</small></div><span class="pill">Остаток: ${s.qty}</span></div>`).join('')||'<div class="empty">Склад пока пуст</div>'}</div>`;
+if(page==='finance')html=`<div class="page-title">Финансы</div><div class="stats"><div class="stat"><small>Выданные заказы</small><strong class="green">${money(revenue)}</strong></div><div class="stat"><small>Расходы</small><strong class="yellow">${money(expenses)}</strong></div><div class="stat"><small>Разница</small><strong>${money(revenue-expenses)}</strong></div><div class="stat"><small>Все заказы</small><strong>${db.orders.length}</strong></div></div><div class="toolbar"><h3>Расходы</h3><button onclick="addExpense()">＋ Расход</button></div><div class="list">${db.expenses.map(e=>`<div class="item"><div><b>${esc(e.name)}</b><small>${new Date(e.date).toLocaleDateString('ru-RU')}</small></div><b>${money(e.amount)}</b></div>`).join('')||'<div class="empty">Расходов пока нет</div>'}</div><p class="muted">Пока учитывается сумма выданных заказов за вычетом внесённых расходов. Это не бухгалтерская прибыль.</p>`;
+if(page==='staff')html=`<div class="page-title">Персонал и роли</div><div class="toolbar"><span class="muted">${db.staff.length} сотрудников</span><button onclick="addStaff()">＋ Сотрудник</button></div><div class="list">${db.staff.map(s=>`<div class="item"><div><b>${esc(s.name)}</b><small>${esc(s.role)}</small></div><span class="pill">Доступ: демо</span></div>`).join('')}</div><div class="panel" style="margin-top:14px"><b>Важно о правах доступа</b><p class="muted">В этой демоверсии роли только отображаются. Реальные ограничения доступа появятся после подключения серверной авторизации.</p></div>`;
+$('#app').innerHTML=html;
+}
+render();
+if('serviceWorker' in navigator && location.protocol.startsWith('http'))navigator.serviceWorker.register('./sw.js').catch(()=>{});
+</script>
+</body></html>
